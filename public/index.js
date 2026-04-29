@@ -11,14 +11,20 @@ document.addEventListener("DOMContentLoaded", () => {
 function renderOldCheckBox(data) {
   if (!data) return;
 
+  console.log(Object.entries(data));
+
   Object.entries(data).forEach(([id, value]) => {
     const el = document.getElementById(id);
+
+    console.log(id);
     console.log("This elem is gotted", el);
+
+    console.log("VALUE", value);
 
     if (el) {
       el.checked = value.state;
     } else {
-      console.log("Missing checkbox:", key);
+      console.log("Missing checkbox:", id);
     }
   });
 }
@@ -28,7 +34,7 @@ async function fetchOldCheckboxes() {
     const res = await fetch("http://localhost:8000/checkboxes");
     const data = await res.json();
 
-    renderOldCheckBox(data);
+    renderOldCheckBox(data.rawToJson);
   } catch (err) {
     console.error("Error:", err);
   }
@@ -42,6 +48,9 @@ socket.on("server:checkbox:change", (data) => {
   console.log("Socket server Event:", data);
 
   const get_checkbox = document.getElementById(data.id);
+
+  console.log("Got this Data id", data.id);
+
   get_checkbox.checked = data.checked;
 });
 
