@@ -5,15 +5,15 @@ const CHECK_BOXES_COUNT = 10000;
 
 const OIDC_CONFIG = {
   clientId: "216cfa820c82bd1e63de305ca321b137",
-  clientSecret: "4655ce3f36e7bf4fe3dab7299ea568390eabd5825d1d50c3e5619bc5c4d51bec",
   redirectUri: window.location.origin + "/",
   authorizeEndpoint: "https://my-oidc.vercel.app/o/authorize",
-  tokenEndpoint: "https://my-oidc.vercel.app/o/token",
   userInfoEndpoint: "https://my-oidc.vercel.app/o/userinfo",
 };
 
 let isAuthenticated = false;
 let userProfile = null;
+let isRateLimited = false;
+let requestTimestamps = [];
 
 function getAuthToken() {
   return localStorage.getItem("id_token") || localStorage.getItem("access_token");
@@ -23,6 +23,58 @@ function clearAuthTokens() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("id_token");
   localStorage.removeItem("oidc_state");
+}
+
+function showToast(title, message, duration = 3000) {
+  const container = document.getElementById("toast-container");
+
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `
+    <span class="toast-icon">🚫</span>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-message toast-message-text">${message}</div>
+    </div>
+    <div class="toast-progress"></div>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("toast-exit");
+    toast.addEventListener("animationend", () => toast.remove());
+  }, duration);
+
+  return toast;
+}
+
+function lockCheckboxes(ms = 5000) {
+  if (isRateLimited) return;
+  isRateLimited = true;
+
+  document.querySelectorAll('#container input[type="checkbox"]').forEach((cb) => {
+    cb.disabled = true;
+  });
+
+  const seconds = Math.ceil(ms / 1000);
+  let remaining = seconds;
+
+  const toast = showToast("Slow down! 🐢", `Cooldown: ${remaining}s remaining...`, ms);
+  const msgEl = toast.querySelector(".toast-message-text");
+
+  const interval = setInterval(() => {
+    remaining -= 1;
+    if (msgEl) msgEl.textContent = `Cooldown: ${remaining}s remaining...`;
+  }, 1000);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    isRateLimited = false;
+    document.querySelectorAll('#container input[type="checkbox"]').forEach((cb) => {
+      cb.disabled = !isAuthenticated;
+    });
+  }, ms);
 }
 
 window.addEventListener("load", async () => {
@@ -72,15 +124,12 @@ async function checkAuth() {
     loginBtn.style.display = "none";
 
     try {
-      const response = await fetch(OIDC_CONFIG.tokenEndpoint, {
+      const response = await fetch("/api/callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          grant_type: "authorization_code",
           code,
-          client_id: OIDC_CONFIG.clientId,
-          client_secret: OIDC_CONFIG.clientSecret,
-          redirect_uri: OIDC_CONFIG.redirectUri,
+          redirectUri: OIDC_CONFIG.redirectUri,
         }),
       });
 
@@ -183,6 +232,14 @@ socket.on("connect", () => {
   console.log("Connected with id:", socket.id);
 });
 
+socket.on("error", (data) => {
+  if (data?.message?.includes("Rate limit")) {
+    lockCheckboxes(5000);
+  } else {
+    showToast("Error", data?.message || "Something went wrong.");
+  }
+});
+
 socket.on("server:checkbox:change", (data) => {
   const checkbox = document.getElementById(data.id);
   if (checkbox) checkbox.checked = data.checked;
@@ -198,15 +255,26 @@ function createCheckboxes() {
     checkbox.disabled = !isAuthenticated;
 
     checkbox.addEventListener("change", (e) => {
-      if (!isAuthenticated) {
-        e.preventDefault();
+      if (!isAuthenticated || isRateLimited) {
         e.target.checked = !e.target.checked;
         return;
       }
 
+      const now = Date.now();
+      requestTimestamps = requestTimestamps.filter((t) => now - t < 5000);
+
+      if (requestTimestamps.length >= 3) {
+        e.target.checked = !e.target.checked;
+        lockCheckboxes(5000);
+        return;
+      }
+
+      requestTimestamps.push(now);
+
       socket.emit("client:checkbox:change", {
         id: e.target.id,
         checked: e.target.checked,
+        token: getAuthToken(),
       });
     });
 

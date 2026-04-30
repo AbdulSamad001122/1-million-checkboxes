@@ -1,10 +1,9 @@
 import Redis from "ioredis";
 
 function newRedisConnection() {
-  return new Redis({
-    host: "localhost",
-    port: 6379,
-  });
+  return process.env.REDIS_URL
+    ? new Redis(process.env.REDIS_URL)
+    : new Redis({ host: "localhost", port: 6379 });
 }
 
 export const getOldData = new newRedisConnection();
