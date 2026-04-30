@@ -4,7 +4,7 @@ const container = document.getElementById("container");
 const CHECK_BOXES_COUNT = 10000;
 
 const OIDC_CONFIG = {
-  clientId: "216cfa820c82bd1e63de305ca321b137",
+  clientId: "797818d4fd4261921ef85d76cc062d59",
   redirectUri: window.location.origin + "/",
   authorizeEndpoint: "https://my-oidc.vercel.app/o/authorize",
   userInfoEndpoint: "https://my-oidc.vercel.app/o/userinfo",
