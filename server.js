@@ -82,22 +82,21 @@ io.on("connection", (socket) => {
 
     const { token: _, ...payload } = data;
     console.log(`User ${user.sub} changed checkbox`, payload);
-    await publisher.publish(REDIS_CHANNEL, JSON.stringify(payload));
+    publisher.publish(REDIS_CHANNEL, JSON.stringify(payload)).catch(err => console.error("Publish error:", err));
   });
 });
 
 subscriber.subscribe(REDIS_CHANNEL);
 
-subscriber.on("message", async (channel, message) => {
+subscriber.on("message", (channel, message) => {
   const data = JSON.parse(message);
   console.log("Global Redis event:", data);
-  await getOldData.hset(CHECK_BOXES_STATE_KEY, data.id, data.checked);
+  getOldData.hset(CHECK_BOXES_STATE_KEY, data.id, data.checked).catch(err => console.error("HSET error:", err));
   io.emit("server:checkbox:change", data);
 });
 
-app.get("/checkboxes", requireAuth, async (req, res) => {
+app.get("/checkboxes", async (req, res) => {
   const raw = await getOldData.hgetall(CHECK_BOXES_STATE_KEY);
-  console.log("got this data from redis", raw);
   return res.status(200).json(raw);
 });
 

@@ -1,7 +1,7 @@
 const socket = io();
 
 const container = document.getElementById("container");
-const CHECK_BOXES_COUNT = 10000;
+const CHECK_BOXES_COUNT = 100000;
 
 const OIDC_CONFIG = {
   clientId: "797818d4fd4261921ef85d76cc062d59",
