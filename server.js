@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.static(path.resolve(process.cwd(), "public")));
 
 app.get("/health", (req, res) => {
-  res.send("Server is healthy!");
+  res.sendStatus(200);
 });
 
 app.post("/api/callback", async (req, res) => {
