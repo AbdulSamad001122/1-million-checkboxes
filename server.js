@@ -9,11 +9,11 @@ import { Server } from "socket.io";
 import { publisher, subscriber, getOldData } from "./redis.connection.js";
 import { requireAuth } from "./middleware/auth.js";
 import { verifyToken } from "./middleware/verifyToken.js";
+import { group } from "node:console";
 
 const PORT = process.env.PORT || 8000;
 const CHECK_BOXES_STATE_KEY = "checkboxes:state";
 const REDIS_CHANNEL = "client-to-internal-server:checkbox:change";
-
 
 const app = express();
 const server = createServer(app);
@@ -59,7 +59,6 @@ app.post("/api/callback", async (req, res) => {
   }
 });
 
-
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
@@ -70,19 +69,21 @@ io.on("connection", (socket) => {
       return;
     }
 
-
     const rateLimitKey = `rate-limit:${user.sub}`;
     const count = await getOldData.incr(rateLimitKey);
     if (count === 1) await getOldData.expire(rateLimitKey, 5);
     if (count > 3) {
-      socket.emit("error", { message: "Rate limit exceeded. Max 3 per 5 seconds." });
+      socket.emit("error", {
+        message: "Rate limit exceeded. Max 3 per 5 seconds.",
+      });
       return;
     }
 
-
     const { token: _, ...payload } = data;
     console.log(`User ${user.sub} changed checkbox`, payload);
-    publisher.publish(REDIS_CHANNEL, JSON.stringify(payload)).catch(err => console.error("Publish error:", err));
+    publisher
+      .publish(REDIS_CHANNEL, JSON.stringify(payload))
+      .catch((err) => console.error("Publish error:", err));
   });
 });
 
@@ -91,7 +92,9 @@ subscriber.subscribe(REDIS_CHANNEL);
 subscriber.on("message", (channel, message) => {
   const data = JSON.parse(message);
   console.log("Global Redis event:", data);
-  getOldData.hset(CHECK_BOXES_STATE_KEY, data.id, data.checked).catch(err => console.error("HSET error:", err));
+  getOldData
+    .hset(CHECK_BOXES_STATE_KEY, data.id, data.checked)
+    .catch((err) => console.error("HSET error:", err));
   io.emit("server:checkbox:change", data);
 });
 
