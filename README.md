@@ -123,8 +123,3 @@ To prevent abuse and maintain server stability, we implemented a sliding window 
 *   **Threshold:** If the counter exceeds 3 within that 5-second window, the server rejects the request and sends an error message.
 *   **Frontend Sync:** The frontend also tracks these timestamps. If it detects a breach, it disables all checkboxes and displays a "Cooldown" toast with a countdown until the user can interact again.
 
-## Screenshots or Demo Link
-
-*(Add your screenshots or demo link here)*
-
-> **Note:** The current board is configured for 100,000 checkboxes but the architecture is fully capable of handling 1,000,000+ with minimal configuration changes.
